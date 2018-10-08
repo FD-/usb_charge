@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <libusb-1.0/libusb.h>
 
-#define VERSION "1.1.1"
+#define VERSION "1.2"
 
 #define CTRL_OUT	(LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT)
 #define VENDOR_APPLE 0x05ac
@@ -18,6 +18,8 @@
 #define PRODUCT_IPAD3	0x12a4
 #define PRODUCT_IPAD3_4G 0x12a6
 #define PRODUCT_IPAD4_AIR_AIR2_MINI 0x12ab
+#define PRODUCT_IPAD3_CDMA 0x12a5
+#define PRODUCT_IPAD_MINI 0x12a9
 #define ADDITIONAL_VALUE_IPAD 1600
 
 #define PRODUCT_IPOD_TOUCH_2G 0x1293
@@ -28,6 +30,7 @@
 #define PRODUCT_IPOD_TOUCH_4G 0x129e
 #define PRODUCT_IPHONE_4S 0x12a0
 #define PRODUCT_IPHONE_5_5S_6 0x12a8
+#define PRODUCT_IPOD_TOUCH_5G 0x12aa
 #define ADDITIONAL_VALUE_IPHONE 500
 
 #define VENDOR_RIM 0x0fca
@@ -36,21 +39,14 @@
 
 #define ADDITIONAL_VALUE_DEFAULT 1600
 
-
 int set_charging_mode(libusb_device *dev, bool enable, int additional_value) {
 	int ret;
 	struct libusb_device_handle *dev_handle;
 
 	if ((ret = libusb_open(dev, &dev_handle)) < 0) {
-		fprintf(stderr, "ipad_charge: unable to open device: error %d\n", ret);
-		fprintf(stderr, "ipad_charge: %s\n", libusb_strerror(ret));
+		fprintf(stderr, "usb_charge: unable to open device: error %d\n", ret);
+		fprintf(stderr, "usb_charge: %s\n", libusb_error_name(ret));
 		return ret;
-	}
-
-	if ((ret = libusb_claim_interface(dev_handle, 0)) < 0) {
-		fprintf(stderr, "ipad_charge: unable to claim interface: error %d\n", ret);
-		fprintf(stderr, "ipad_charge: %s\n", libusb_strerror(ret));
-		goto out_close;
 	}
 
 	// the 3rd and 4th numbers are the extra current in mA that the Apple device may draw in suspend state.
@@ -58,15 +54,13 @@ int set_charging_mode(libusb_device *dev, bool enable, int additional_value) {
 	// for the MFi spec. Also the typical values for the 3nd listed in the MFi spec are 0, 100, 500 so I chose 500 for that.
 	// And changed it to decimal to be clearer.
 	if ((ret = libusb_control_transfer(dev_handle, CTRL_OUT, 0x40, 500, enable ? additional_value : 0, NULL, 0, 2000)) < 0) {
-		fprintf(stderr, "ipad_charge: unable to send command: error %d\n", ret);
-		fprintf(stderr, "ipad_charge: %s\n", libusb_strerror(ret));
-		goto out_release;
+		fprintf(stderr, "usb_charge: unable to send command: error %d\n", ret);
+		fprintf(stderr, "usb_charge: %s\n", libusb_error_name(ret));
+		goto out_close;
 	}
 
 	ret = 0;
 
-out_release:
-	libusb_release_interface(dev_handle, 0);
 out_close:
 	libusb_close(dev_handle);
 
@@ -75,19 +69,19 @@ out_close:
 
 void help(char *progname) {
 	printf("Usage: %s [OPTION]\n", progname);
-	printf("iPad USB charging control utility\n\n");
+	printf("USB charging control utility\n\n");
 	printf("Available OPTIONs:\n");
 	printf("  -0, --off\t\t\tdisable charging instead of enabling it\n");
 	printf("  -h, --help\t\t\tdisplay this help and exit\n");
 	printf("  -V, --version\t\t\tdisplay version information and exit\n");
 	printf("\nExamples:\n");
-	printf("  ipad_charge\t\t\t\t\tenable charging on all connected iPads\n");
-	printf("  BUS=004 DEV=014 ipad_charge -off\tdisable charging on iPad connected on bus 4, device 14\n");
+	printf("  usb_charge\t\t\t\t\tenable charging on all connected iOS devices\n");
+	printf("  BUS=004 DEV=014 usb_charge -off\tdisable charging on device connected on bus 4, device 14\n");
 }
 
 void version() {
-	printf("ipad_charge v%s - iPad USB charging control utility\n", VERSION);
-	printf("Copyright (c) 2010 Ondrej Zary - http://www.rainbow-software.org\n");
+	printf("usb_charge v%s - USB charging control utility\n", VERSION);
+	printf("Copyright (c) 2010 Ondrej Zary, modified 2018 Florian Draschbacher\n");
 	printf("License: GLPv2\n");
 }
 
@@ -127,13 +121,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (libusb_init(NULL) < 0) {
-		fprintf(stderr, "ipad_charge: failed to initialise libusb\n");
+		fprintf(stderr, "usb_charge: failed to initialise libusb\n");
 		exit(1);
 	}
 
 	libusb_device **devs;
 	if (libusb_get_device_list(NULL, &devs) < 0) {
-		fprintf(stderr, "ipad_charge: unable to enumerate USB devices\n");
+		fprintf(stderr, "usb_charge: unable to enumerate USB devices\n");
 		ret = 2;
 		goto out_exit;
 	}
@@ -146,7 +140,7 @@ int main(int argc, char *argv[]) {
 			if (libusb_get_bus_number(dev) == busnum &&
 			    libusb_get_device_address(dev) == devnum) {
 			    	if (set_charging_mode(dev, enable, ADDITIONAL_VALUE_DEFAULT) < 0)
-			    		fprintf(stderr, "ipad_charge: error setting charge mode\n");
+			    		fprintf(stderr, "usb_charge: error setting charge mode\n");
 				else
 					count++;
 				break;
@@ -157,10 +151,11 @@ int main(int argc, char *argv[]) {
 		while ((dev = devs[i++]) != NULL) {
 			struct libusb_device_descriptor desc;
 			if ((ret = libusb_get_device_descriptor(dev, &desc)) < 0) {
-				fprintf(stderr, "ipad_charge: failed to get device descriptor: error %d\n", ret);
-				fprintf(stderr, "ipad_charge: %s\n", libusb_strerror(ret));
+				fprintf(stderr, "usb_charge: failed to get device descriptor: error %d\n", ret);
+				fprintf(stderr, "usb_charge: %s\n", libusb_error_name(ret));
 				continue;
 			}
+
 			if (desc.idVendor == VENDOR_APPLE && (desc.idProduct == PRODUCT_IPAD1
 					|| desc.idProduct == PRODUCT_IPAD2
 					|| desc.idProduct == PRODUCT_IPAD2_3G
@@ -168,13 +163,16 @@ int main(int argc, char *argv[]) {
 					|| desc.idProduct == PRODUCT_IPAD2_3GV
 					|| desc.idProduct == PRODUCT_IPAD3
 					|| desc.idProduct == PRODUCT_IPAD3_4G
-          || desc.idProduct == PRODUCT_IPAD4_AIR_AIR2_MINI)) {
+          			|| desc.idProduct == PRODUCT_IPAD4_AIR_AIR2_MINI
+          			|| desc.idProduct == PRODUCT_IPAD3_CDMA
+          			|| desc.idProduct == PRODUCT_IPAD_MINI)) {
 
 				if (set_charging_mode(dev, enable, ADDITIONAL_VALUE_IPAD) < 0)
-					fprintf(stderr, "ipad_charge: error setting charge mode\n");
+					fprintf(stderr, "usb_charge: error setting charge mode\n");
 				else
 					count++;
 			}
+
 			if (desc.idVendor == VENDOR_APPLE && (desc.idProduct == PRODUCT_IPOD_TOUCH_2G
 					|| desc.idProduct == PRODUCT_IPHONE_3GS
 					|| desc.idProduct == PRODUCT_IPHONE_4_GSM
@@ -182,24 +180,26 @@ int main(int argc, char *argv[]) {
 					|| desc.idProduct == PRODUCT_IPHONE_4_CDMA
 					|| desc.idProduct == PRODUCT_IPOD_TOUCH_4G
 					|| desc.idProduct == PRODUCT_IPHONE_4S
-					|| desc.idProduct == PRODUCT_IPHONE_5_5S_6)) {
+					|| desc.idProduct == PRODUCT_IPHONE_5_5S_6
+					|| desc.idProduct == PRODUCT_IPOD_TOUCH_5G)) {
 
 				if (set_charging_mode(dev, enable, ADDITIONAL_VALUE_IPHONE) < 0)
-					fprintf(stderr, "ipad_charge: error setting charge mode\n");
+					fprintf(stderr, "usb_charge: error setting charge mode\n");
 				else
 					count++;
 			}
-      if (desc.idVendor == VENDOR_RIM && desc.idProduct == PRODUCT_Q10) {
+
+            if (desc.idVendor == VENDOR_RIM && desc.idProduct == PRODUCT_Q10) {
 				if (set_charging_mode(dev, enable, ADDITIONAL_VALUE_Q10) < 0)
-					fprintf(stderr, "ipad_charge: error setting charge mode\n");
+					fprintf(stderr, "usb_charge: error setting charge mode\n");
 				else
 					count++;
-      }
+            }
 		}
 	}
 
 	if (count < 1) {
-		fprintf(stderr, "ipad_charge: no such device or an error occured\n");
+		fprintf(stderr, "usb_charge: no such device or an error occured\n");
 		ret = 3;
 	} else
 		ret = 0;
