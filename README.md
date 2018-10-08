@@ -21,6 +21,8 @@ The USB control packet typically has the following format:
 | wValue        | 500 (default power; According to MFi spec either 0, 100, 500) |
 | wIndex        | 1600 (additional power; 1600 mA, the max according to the MFi spec) |
 
+Please note the references to the MFi spec are taken over from the original source code. I don't know what exact specification it is referring to and haven't found any corresponding document online.
+
 It seems like a different value is provided depending on whether the connected device is an iPad or an iPhone/iPod. From the original source code, it looks like some Android phones adopted the same protocol in order to support charging from MacBook USB sockets. However, I tested it using a Nexus 9 and Note 8.0 tablet and either of them supported it.
 
 Supported devices:
