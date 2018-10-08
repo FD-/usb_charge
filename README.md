@@ -8,7 +8,9 @@ USB charging control utility used to enable/disable charging of devices connecte
 
 How it works:
 -----------------
-It seems mkorenkov (the original author of this project) analysed how iOS devices can properly charge from a MacBook USB socket (running macOS), while connecting them to a USB socket on any other OS only charges them at the 500mA a USB socket is guaranteed to deliver by the USB 2.0 specs.
+I'm not entirely sure who exactly is the original author of this tool. It seems like around 2010, some ASUS software ("Asus Ai Charger") added functionality to charge iOS devices under Windows. Some curious Linux developer (Ondrej Zary) investigated how it was done and implemented a Linux tool, which was later maintained and improved by Max Korenkov and several contributors. Many of the original web sites are no longer online.
+
+It seems the original author of this functionality analysed how iOS devices can properly charge from a MacBook USB socket (running macOS), while connecting them to a USB socket on any other OS only charges them at the 500mA a USB socket is guaranteed to deliver by the USB 2.0 specs.
 
 Luckily, Apple implemented their protocol as a simple USB control packet, which can be easily replicated from a libUSB user-space driver. By sending a particular USB control packet, the computer tells the connected iOS device how much power it is allowed to draw from the USB socket. Obviously, the user has to make sure there is actually enough power on the USB port, ie it is recommended to use a powered USB hub.
 
