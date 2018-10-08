@@ -8,7 +8,7 @@ USB charging control utility used to enable/disable charging of devices connecte
 
 How it works:
 -----------------
-I'm not entirely sure who exactly is the original author of this tool. It seems like around 2010, some ASUS software ("Asus Ai Charger") added functionality to charge iOS devices under Windows. Some curious Linux developer (Ondrej Zary) investigated how it was done and implemented a Linux tool, which was later maintained and improved by Max Korenkov and several contributors. Many of the original web sites are no longer online.
+I'm not entirely sure who exactly is the original author of this tool. It seems like around 2010, some ASUS software (Ai Charger, not to be confused with Ai Charger+, which seems to short D+ and D- and works with all devices but blocks data transfer while enabled) added functionality to charge iOS devices under Windows. Some curious Linux developer (Ondrej Zary) investigated how it was done and implemented a Linux tool, which was later maintained and improved by Max Korenkov and several contributors. Many of the original web sites are no longer online.
 
 It seems the original author of this functionality analysed how iOS devices can properly charge from a MacBook USB socket (running macOS), while connecting them to a USB socket on any other OS only charges them at the 500mA a USB socket is guaranteed to deliver by the USB 2.0 specs.
 
